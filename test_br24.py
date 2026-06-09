@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import br24_driver
+from . import br24_driver
 import time
 
 if __name__ == '__main__':
@@ -22,10 +22,10 @@ if __name__ == '__main__':
                 if last_angle > curr_angle:
                     # e.g.  360 > 1
                     curr_time = time.time()-start_time
-                    print "finished full scan: %s %s"%(curr_time,last_angle)
-                    print "processed %d scan lines"%(count)
-                    print "socket queue size: %d"%(br.data_q.qsize())
-                    print "scanline queue size: %d"%(br.scan_data_decoder.scanlines.qsize())
+                    print("finished full scan: %s %s"%(curr_time,last_angle))
+                    print("processed %d scan lines"%(count))
+                    print("socket queue size: %d"%(br.data_q.qsize()))
+                    print("scanline queue size: %d"%(br.scan_data_decoder.scanlines.qsize()))
                     count = 0 
                     start_time = time.time()
                 last_angle = curr_angle
@@ -33,6 +33,6 @@ if __name__ == '__main__':
             #else:
             #    time.sleep(0.001)
     except KeyboardInterrupt:
-        print "Stopping radar.."
+        print("Stopping radar..")
         br.stop()
 

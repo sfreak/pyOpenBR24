@@ -4,14 +4,14 @@ import subprocess
 from os import path
 from scapy.all import *
 from scapy.utils import rdpcap
-from br24_driver import multicast_socket
+from .br24_driver import multicast_socket
 import time
-import StringIO
+import io
 import binascii
 import struct
 
 def reassemble_packet(fragment_list):
-    buffer=StringIO.StringIO()
+    buffer=io.StringIO()
     for pkt in sorted(fragment_list, key = lambda pkt:pkt['IP'].frag):
          buffer.seek(pkt['IP'].frag*8)
          buffer.write(pkt['IP'].payload)
@@ -38,21 +38,21 @@ if __name__=="__main__":
         pcap_path, pcap_file_name = path.split(args.pcap_file_path)
         pcap_file_name, ext = path.splitext(pcap_file_name)
 
-        print (pcap_path, pcap_file_name)
+        print((pcap_path, pcap_file_name))
         subprocess.call(['editcap','-c','1024','-F','libpcap',args.pcap_file_path,'_'+pcap_file_name+'_out.pcap'])
         out,err = subprocess.Popen(['ls | grep '+pcap_file_name+'_out'], stdout=subprocess.PIPE, shell=True).communicate()
 
         fragments = {}
 
         for pcap_file in out.splitlines():
-            print 'Processing %s'%(pcap_file)
+            print('Processing %s'%(pcap_file))
             pkts = rdpcap(pcap_file)
             timestamp = pkts[0].time
             for pkt in pkts:
                 if pkt.haslayer('IP'):
                     dst = pkt['IP'].dst
-                    if dst in mcastsocket.keys():
-                        print "id: %d offset: %d"%(pkt['IP'].id,pkt['IP'].frag*8)
+                    if dst in list(mcastsocket.keys()):
+                        print("id: %d offset: %d"%(pkt['IP'].id,pkt['IP'].frag*8))
                         time.sleep((pkt.time - timestamp)*scale)
                         timestamp = pkt.time
                         if pkt['IP'].flags == 1:
@@ -60,12 +60,12 @@ if __name__=="__main__":
                             if pkt['IP'].frag == 0:
                                 #fragments[pkt['IP'].id] = [pkt]
                                 #print pkt['IP'].payload
-                                buffer=StringIO.StringIO()
+                                buffer=io.StringIO()
                                 buffer.seek(pkt['IP'].frag*8)
                                 buffer.write(pkt['IP'].payload)
                                 fragments[pkt['IP'].id] = buffer
                             else:
-                                if pkt['IP'].id not in fragments.keys():
+                                if pkt['IP'].id not in list(fragments.keys()):
                                     continue
                                 #fragments[pkt['IP'].id].append(pkt)
                                 buffer=fragments[pkt['IP'].id]

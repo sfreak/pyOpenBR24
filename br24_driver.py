@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import socket
 from multiprocessing import Process, Queue, Event
+from threading import Thread
 import signal
 import sys
 import yaml
@@ -10,10 +11,10 @@ import binascii
 import cProfile
 
 # A utility class for multicast sockets
-class multicast_socket(Process):
+class multicast_socket(Thread):
     def __init__(self, group_addr, group_port, data_q = None, buffer_size = 65536, name="", iface_ip=None):
         # set thread properties
-        Process.__init__(self)
+        super().__init__()
         self.alive = Event()
         self.alive.clear()
         self.daemon = True
@@ -37,7 +38,7 @@ class multicast_socket(Process):
             mreq = s_pack('=4sl', group, socket.INADDR_ANY)
         else:
             # 
-            print iface_ip
+            print(iface_ip)
             mreq = group + socket.inet_aton(iface_ip)
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface_ip))
 
@@ -78,14 +79,14 @@ class multicast_socket(Process):
             time.sleep(0.0001)
 
     def stop(self):
-        print "Stopping multicast socket %s..."%(self.name)
+        print("Stopping multicast socket %s..."%(self.name))
         self.alive.clear()
         self.sock.close()
 
 # A class for interpreting incoming bytes as a scan data frame produced by the br24 radar. It just
 # tries to create scanlines out of the incoming bytes
 class br24_frame_decoder:
-    FRAME_START_SEQUENCE = '\x01\x00\x00\x00\x00'
+    FRAME_START_SEQUENCE = b'\x01\x00\x00\x00\x00'
     FR_WAIT = 0
     FR_START_DONE = 4
     FR_N_SCANLINE = 5
@@ -237,36 +238,36 @@ class br24_frame_decoder:
         self.restore_from_local_copy(state,scanline_idx,num_scanlines,scanline_size,scanline_header_size,curr_sc,scanline_header,scanline_data)
 
 # A driver for the BR24 radar! This
-class br24(Process): 
+class br24(Thread): 
     # COMMANDS
-    CMD_POWER_1 = '\x00\xc1'
-    CMD_POWER_2 = '\x01\xc1'
-    CMD_RANGE = '\x03\xc1'
-    CMD_FILTER_AND_PREPROCESS = '\x06\xc1'
-    CMD_INTERFERENCE_REJECTION = '\x08\xc1'
-    CMD_TARGET_BOOST = '\x0A\xc1'
-    CMD_LOCAL_INTERFERENCE_FILTER = '\x0E\xc1'
-    CMD_SCAN_SPEED = '\x0F\xc1'
-    CMD_KEEP_ALIVE = '\xA0\xc1'
-    RADAR_RANGE_OPTIONS = ['\xf4\x01\x00\x00',
-                           '\xee\x02\x00\x00',
-                           '\xee\x03\x00\x00',
-                           '\xc4\x09\x00\x00',
-                           '\x88\x13\x00\x00',
-                           '\x4c\x1d\x00\x00',
-                           '\x10\x27\x00\x00',
-                           '\x98\x3a\x00\x00',
-                           '\x20\x4e\x00\x00',
-                           '\x30\x75\x00\x00',
-                           '\x40\x9c\x00\x00',
-                           '\x60\xea\x00\x00',
-                           '\x80\x38\x01\x00',
-                           '\xc0\xd4\x01\x00',
-                           '\x00\x71\x02\x00',
-                           '\x80\xa9\x03\x00']
+    CMD_POWER_1 = b'\x00\xc1'
+    CMD_POWER_2 = b'\x01\xc1'
+    CMD_RANGE = b'\x03\xc1'
+    CMD_FILTER_AND_PREPROCESS = b'\x06\xc1'
+    CMD_INTERFERENCE_REJECTION = b'\x08\xc1'
+    CMD_TARGET_BOOST = b'\x0A\xc1'
+    CMD_LOCAL_INTERFERENCE_FILTER = b'\x0E\xc1'
+    CMD_SCAN_SPEED = b'\x0F\xc1'
+    CMD_KEEP_ALIVE = b'\xA0\xc1'
+    RADAR_RANGE_OPTIONS = [b'\xf4\x01\x00\x00',
+                           b'\xee\x02\x00\x00',
+                           b'\xee\x03\x00\x00',
+                           b'\xc4\x09\x00\x00',
+                           b'\x88\x13\x00\x00',
+                           b'\x4c\x1d\x00\x00',
+                           b'\x10\x27\x00\x00',
+                           b'\x98\x3a\x00\x00',
+                           b'\x20\x4e\x00\x00',
+                           b'\x30\x75\x00\x00',
+                           b'\x40\x9c\x00\x00',
+                           b'\x60\xea\x00\x00',
+                           b'\x80\x38\x01\x00',
+                           b'\xc0\xd4\x01\x00',
+                           b'\x00\x71\x02\x00',
+                           b'\x80\xa9\x03\x00']
 
     def __init__(self, interface_ip = None):
-        Process.__init__(self)
+        super().__init__()
         self.data_q = Queue()
 
         self.scan_data_socket = multicast_socket('236.6.7.8', 6678, data_q = self.data_q, name="scan_data", iface_ip = interface_ip)
@@ -282,63 +283,63 @@ class br24(Process):
         self.scan_data_decoder = br24_frame_decoder()
 
     ### COMMAND SOCKET METHODS ###
-    def send_command(self,cmd,value=''):
+    def send_command(self,cmd,value=b''):
         self.command_request_socket.write(cmd+value)
         time.sleep(0.001)
 
     def start_radar(self):
-        print "Starting radar..."
-        self.send_command(self.CMD_POWER_1,'\x01')
-        self.send_command(self.CMD_POWER_2,'\x01')
+        print("Starting radar...")
+        self.send_command(self.CMD_POWER_1,b'\x01')
+        self.send_command(self.CMD_POWER_2,b'\x01')
         self.radar_on = True
         return True
 
     def stop_radar(self):
-        print "Stopping radar..."
-        self.send_command(self.CMD_POWER_1,'\x00')
-        self.send_command(self.CMD_POWER_2,'\x00')
+        print("Stopping radar...")
+        self.send_command(self.CMD_POWER_1,b'\x00')
+        self.send_command(self.CMD_POWER_2,b'\x00')
         self.radar_on = False
         return True
 
     def increase_scan_speed(self,multiplier):
-        for i in xrange(multiplier):
-            self.send_command(self.CMD_SCAN_SPEED,'\x01')
+        for i in range(multiplier):
+            self.send_command(self.CMD_SCAN_SPEED,b'\x01')
         return True
 
     def reset_scan_speed(self):
-        self.send_command(self.CMD_SCAN_SPEED,'\x00')
+        self.send_command(self.CMD_SCAN_SPEED,b'\x00')
         return True
 
     def set_local_interference_filter(self,option):
         if option >=0 and option <=3:
-            self.send_command(self.CMD_LOCAL_INTERFERENCE_FILTER,chr(option))
+            self.send_command(self.CMD_LOCAL_INTERFERENCE_FILTER,bytes([option]))
             return True
         return False
 
     def set_target_boost(self,option):
         if option >=0 and option <=2:
-            self.send_command(self.CMD_TARGET_BOOST,chr(option))
+            self.send_command(self.CMD_TARGET_BOOST,bytes([option]))
             return True
         return False
 
     def set_interference_rejection(self,option):
         if option >=0 and option <=3:
-            self.send_command(self.CMD_INTERFERENCE_REJECTION,chr(option))
+            self.send_command(self.CMD_INTERFERENCE_REJECTION,bytes([option]))
             return True
         return False
 
     # TODO figure out if the filtering and preprocessing bits are correct
     def set_filters_and_preprocessing(self,option,arg = None):
-        options = {'auto_gain': '\x00\x00\x00\x00\x01\x00\x00\x00\xA1',
-                   'manual_gain': '\x00\x00\x00\x00\x00\x00\x00\x00',
-                   'rain_clutter_manual': '\x04\x00\x00\x00\x00\x00\x00\x00',
-                   'sea_clutter_auto': '\x02\x00\x00\x00\x01\x00\x00\x00\xD3',
-                   'sea_clutter_manual': '\x02\x00\x00\x00\x00\x00\x00\x00'}
+        options = {'auto_gain': b'\x00\x00\x00\x00\x01\x00\x00\x00\xA1',
+                   'manual_gain': b'\x00\x00\x00\x00\x00\x00\x00\x00',
+                   'rain_clutter_manual': b'\x04\x00\x00\x00\x00\x00\x00\x00',
+                   'sea_clutter_auto': b'\x02\x00\x00\x00\x01\x00\x00\x00\xD3',
+                   'sea_clutter_manual': b'\x02\x00\x00\x00\x00\x00\x00\x00'}
         param = options[option]
         if option == 'manual_gain' or option == 'rain_clutter_manual' or option == 'sea_clutter_manual':
-            param += chr(arg)
+            param += arg
 
-        self.send_command(self.CMD_FILTER_AND_PREPROCESS,param)
+        self.send_command(self.CMD_FILTER_AND_PREPROCESS,bytes([param]))
         pass
 
     def set_radar_range(self,option):
@@ -384,7 +385,7 @@ class br24(Process):
                 time.sleep(0.0001)
                 
     def stop(self):
-        print "Stopping radar driver..."
+        print("Stopping radar driver...")
         self.scan_data_socket.stop()
         self.stop_radar()
         self.alive.clear()
