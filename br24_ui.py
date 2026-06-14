@@ -160,9 +160,9 @@ class br24_ctrl_window(threading.Thread):
                     start_time = time.time()
 
                     # save current radar scan for later processing...
-                    timestr = time.strftime("%Y-%m-%d-%H%M%S%f")
+                    timestr = time.strftime("%Y-%m-%d-%H%M%S")
                     with open(timestr+'.pickle', 'wb') as f:
-                        pickle.dump(radar_scan)
+                        pickle.dump(radar_scan, f)
                     radar_scan = []
 
                 last_angle = sc['angle']
