@@ -6,6 +6,7 @@ from PIL import Image, ImageTk
 import time
 import math
 import threading
+import pickle
 
 #class br24_ctrl_window(mp.Process):
 class br24_ctrl_window(threading.Thread):
@@ -112,10 +113,6 @@ class br24_ctrl_window(threading.Thread):
         print("resetting scanning speed to normal")
         self.br.reset_scan_speed()
 
-    def set_filter_preprocessing(self, event):
-        print("setting ")
-        self.br.increase_scan_speed(val)
-
     def radar_range_cmd(self, event):
         val = self.radar_range_cbox.get() 
         if val != '':
@@ -145,9 +142,11 @@ class br24_ctrl_window(threading.Thread):
         last_angle = -1
         start_time = time.time()
         count = 0
+        radar_scan = []
         while self.alive.is_set():
             while self.br.scanline_ready():
                 sc = self.br.get_scanline()
+                radar_scan.append(sc)
                 self.image_window.draw_scanline(sc)
 
                 if last_angle > sc['angle']:
@@ -159,6 +158,12 @@ class br24_ctrl_window(threading.Thread):
                     print("scanline queue size: %d"%(self.br.scan_data_decoder.scanlines.qsize()))
                     count = 0 
                     start_time = time.time()
+
+                    # save current radar scan for later processing...
+                    timestr = time.strftime("%Y-%m-%d-%H%M%S%f")
+                    with open(timestr+'.pickle', 'wb') as f:
+                        pickle.dump(radar_scan)
+                    radar_scan = []
 
                 last_angle = sc['angle']
                 count+=1
