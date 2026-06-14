@@ -162,7 +162,7 @@ class br24_frame_decoder:
                    state = self.FR_WAIT
             # we got a good header, get number of scan lines
             elif state == self.FR_N_SCANLINE:
-                num_scanlines = ord(byte)
+                num_scanlines = byte
                 if num_scanlines == 0:
                     state = self.FR_WAIT
                     scanline_idx = 0
@@ -176,7 +176,7 @@ class br24_frame_decoder:
             elif state == self.FR_L_SCANLINE:
                 scanline_size.append(byte)
                 if len(scanline_size) == 2:
-                    scanline_size = ord(scanline_size[0]) | ord(scanline_size[1])<<8
+                    scanline_size = scanline_size[0] | scanline_size[1]<<8
                     # start processing scanlines
                     state = self.SC_START_HEADER
                     scanline_idx = 0
@@ -184,8 +184,8 @@ class br24_frame_decoder:
             elif state == self.SC_START_HEADER:
                     curr_sc = {}
                     scanline_header = []
-                    scanline_data = ''
-                    scanline_header_size = ord(byte)
+                    scanline_data = b''
+                    scanline_header_size = byte
                     scanline_header.append(byte)
                     state = self.SC_HEADER
                     if scanline_header_size == 0:
@@ -203,10 +203,10 @@ class br24_frame_decoder:
                 #print "header: %s size %s"%(scanline_header,scanline_header_size)
                 # if we got the full header, extract the data
                 if len(scanline_header) == scanline_header_size:
-                    curr_sc['status'] = ord(scanline_header[1])
-                    curr_sc['index'] = ord(scanline_header[2]) | ord(scanline_header[3])<<8
-                    curr_sc['angle'] = ord(scanline_header[8]) | ord(scanline_header[9])<<8
-                    curr_sc['scale'] = ord(scanline_header[12]) | ord(scanline_header[13])<<8
+                    curr_sc['status'] = scanline_header[1]
+                    curr_sc['index'] = scanline_header[2] | scanline_header[3]<<8
+                    curr_sc['angle'] = scanline_header[8] | scanline_header[9]<<8
+                    curr_sc['scale'] = scanline_header[12] | scanline_header[13]<<8
                     curr_sc['time'] = time.time()
                     state = self.SC_DATA
             # process scanline bytes

@@ -252,7 +252,7 @@ class br24_image_window:
 
         with self.mutex:
             for r in range(r_max):
-                intensity = ord(sc['data'][r])
+                intensity = sc['data'][r]
                 x = int(self.center_x + r*self.scale*sin_ang)
                 y = self.height - int(self.center_y + r*self.scale*cos_ang) - 1
                 #y = int(center + r*scale*cos_ang)
