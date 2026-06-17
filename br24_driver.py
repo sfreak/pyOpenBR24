@@ -1,14 +1,10 @@
 #!/usr/bin/env python
+import os
 import socket
-from multiprocessing import Process, Queue, Event
-from threading import Thread
-import signal
-import sys
-import yaml
+from queue import Queue
+from threading import Thread, Event
 from struct import pack as s_pack
 import time
-import binascii
-import cProfile
 
 # A utility class for multicast sockets
 class multicast_socket(Thread):
@@ -29,22 +25,33 @@ class multicast_socket(Thread):
 
         # init socket as inet udp multicast
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        group = socket.inet_aton(self.address)
         if iface_ip is None:
-            mreq = s_pack('=4sl', group, socket.INADDR_ANY)
-        else:
-            # 
-            print(iface_ip)
-            mreq = group + socket.inet_aton(iface_ip)
+            #iface_ip = '0.0.0.0'
+            iface_ip = '169.254.201.107' ## FIXME: determine automatically
+
+        self.sock.bind((iface_ip,self.port))
+
+        if os.name == 'nt':
+            # Windows
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface_ip))
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, 
+                                socket.inet_aton(self.address) + socket.inet_aton(iface_ip))
+        else:
+            group = socket.inet_aton(self.address)
+            if iface_ip is None:
+                mreq = s_pack('=4sl', group, socket.INADDR_ANY)
+            else:
+                # 
+                print(iface_ip)
+                mreq = group + socket.inet_aton(iface_ip)
+                self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(iface_ip))
+            # Linux
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-        self.sock.bind((self.address,self.port))
 
     def close(self):
         self.sock.close()
